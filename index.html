@@ -817,13 +817,17 @@ function Game() {
     const newScore = score + points;
     setScore(newScore);
     
+    // ⚠️ FIX: הקלפים שמשחקים צריכים לחזור לחפיסה!
     const newHand = hand.filter(c => !selected.find(s => s.id === c.id));
     
     // משוך קלפים חדשים
     const cardsToDrawCount = 8 - newHand.length;
     const newCards = deck.slice(0, cardsToDrawCount);
     setHand([...newHand, ...newCards]);
-    setDeck(deck.slice(cardsToDrawCount));
+    
+    // החזר את הקלפים ששיחקנו לתחתית החפיסה!
+    const remainingDeck = deck.slice(cardsToDrawCount);
+    setDeck([...remainingDeck, ...selected]);
     
     setSelected([]);
     const newHandsLeft = handsLeft - 1;
@@ -869,10 +873,15 @@ function Game() {
   const discardCards = () => {
     if (selected.length === 0 || needsApproval || discardsLeft <= 0) return;
     
+    // ⚠️ FIX: גם כאן - קלפים זרוקים חוזרים לחפיסה!
     const newHand = hand.filter(c => !selected.find(s => s.id === c.id));
     const newCards = deck.slice(0, selected.length);
     setHand([...newHand, ...newCards]);
-    setDeck(deck.slice(selected.length));
+    
+    // החזר את הקלפים הזרוקים לתחתית החפיסה
+    const remainingDeck = deck.slice(selected.length);
+    setDeck([...remainingDeck, ...selected]);
+    
     setSelected([]);
     setDiscardsLeft(discardsLeft - 1);
   };

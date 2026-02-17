@@ -24,14 +24,46 @@
             user-select: none;
             touch-action: manipulation;
         }
+        
+        .card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .card:active {
+            transform: scale(0.95);
+        }
+        
+        @keyframes confetti-fall {
+            0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            z-index: 1000;
+            animation: confetti-fall 2s ease-out forwards;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 min-h-screen text-white">
     <div id="root"></div>
     
+        <script>
+        window.addEventListener('error', function(e) {
+            var root = document.getElementById('root');
+            if (root && !root.hasChildNodes()) {
+                root.innerHTML = '<div style="color:#ff6b6b;padding:30px;font-family:monospace;direction:ltr;text-align:left;background:#1a1a2e;margin:20px;border-radius:15px;border:2px solid #ff6b6b;"><h2 style="color:#ffd93d;">⚠️ שגיאה בטעינה</h2><p>' + e.message + '</p><p style="color:#888;">Line: ' + (e.lineno || '?') + '</p></div>';
+            }
+        });
+    </script>
     <script type="text/babel">
         const { useState } = React;
         
+
 // ===============================
 // מילון עברי מוטמע (2000+ מילים)
 // ===============================
@@ -1151,19 +1183,14 @@ async function validateHebrewWord(word) {
   
   // 2. בדיקה ב-Wiktionary API (גיבוי)
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-    
     const response = await fetch(
       `https://he.wiktionary.org/w/api.php?` +
       `action=query&titles=${encodeURIComponent(word)}` +
       `&format=json&origin=*`,
       { 
-        signal: controller.signal
+        signal: AbortSignal.timeout(3000) // timeout של 3 שניות
       }
     );
-    
-    clearTimeout(timeoutId);
     
     const data = await response.json();
     const pages = data.query.pages;
@@ -1353,7 +1380,7 @@ const JOKERS = [
   { id: 'letter_thief', name: 'גנב אותיות', desc: 'לאחר כל מילה: האות הכי יקרה ביד שווה ×2 בפעם הבאה', cost: 12, icon: '🦝', rarity: 'rare' },
   { id: 'final_power', name: 'כוח סופי', desc: 'האות הסופית של המילה (ה-ן,ם,ף,ך,ץ): ×5', cost: 10, icon: '🏁', rarity: 'rare' },
   { id: 'lucky_alef', name: 'אלף מזל', desc: 'אם יש א במילה: +30 נקודות נוספות', cost: 7, icon: 'א', rarity: 'uncommon' },
-  { id: 'word_doubler', name: 'מכפיל מילים', desc: 'כל 4 מילים: המילה הבאה שווה ×2', cost: 15, icon: '✕2', rarity: 'legendary' },
+  { id: 'word_doubler', name: 'מכפיל מילים', desc: 'כל 4 מילים: המילה הבאה שווה ×2', cost: 15, icon: '×2', rarity: 'legendary' },
   { id: 'perfect_symmetry', name: 'סימטריה מושלמת', desc: 'מילה בת 4: ×2 אם האות הראשונה=האחרונה', cost: 9, icon: '⚖️', rarity: 'rare' },
 ];
 
@@ -1510,7 +1537,7 @@ function getCardValue(card) {
   return Math.floor(value);
 }
 
-function calculateScore(cards, jokers, bossBlind, megaComboMult = 1, streakCount = 0) {
+function calculateScore(cards, jokers, bossBlind, megaComboMult = 1) {
   /* 
   📊 הסבר מערכת הניקוד:
   
@@ -2181,7 +2208,7 @@ function Game() {
       return c;
     });
 
-    let points = calculateScore(cardsToScore, jokers, currentBossBlind, megaComboMult, streakCount);
+    let points = calculateScore(cardsToScore, jokers, currentBossBlind, megaComboMult);
     
     // בוס "היקר"
     if (currentBossBlind?.id === 'expensive') {
@@ -3024,7 +3051,7 @@ function Game() {
   // ===============================
 
   const selectedWord = selected.map(c => c.letter).join('');
-  const selectedScore = selected.length >= 2 ? calculateScore(selected, jokers, currentBossBlind, megaComboMult, streakCount) : 0;
+  const selectedScore = selected.length >= 2 ? calculateScore(selected, jokers, currentBossBlind, megaComboMult) : 0;
 
   return (
     <div className="min-h-screen p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
@@ -3127,6 +3154,7 @@ function Game() {
               ))}
             </div>
           </div>
+        </div>
       )}
       
       <div className="max-w-7xl mx-auto">
@@ -3256,10 +3284,10 @@ function Game() {
                       💎 אותיות: {selected.reduce((sum, c) => sum + getCardValue(c), 0)}
                     </div>
                     <div className="text-green-300 font-bold">
-                      ⭐ בונוס: +{ { 2: 10, 3: 20, 4: 40, 5: 60 }[selected.length] || 10 }
+                      ⭐ בונוס: +{({ 2: 10, 3: 20, 4: 40, 5: 60 })[selected.length] || 10}
                     </div>
                     <div className="text-purple-300 font-bold">
-                      ✖️ מכפיל: ×{ { 2: 1, 3: 2, 4: 4, 5: 5 }[selected.length] || 1 }
+                      ✖️ מכפיל: ×{({ 2: 1, 3: 2, 4: 4, 5: 5 })[selected.length] || 1}
                     </div>
                     
                     {/* בונוסים מג'וקרים */}

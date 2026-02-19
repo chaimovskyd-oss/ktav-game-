@@ -1355,7 +1355,7 @@ const JOKERS = [
   { id: 'thrifty', name: 'חסכן', desc: 'כל זריקה שנשארת: +2₪ בסוף השלב', cost: 6, icon: '🏦', rarity: 'uncommon' },
   { id: 'efficient', name: 'יעיל', desc: 'כל יד שנשארת: +3₪ בסוף השלב', cost: 7, icon: '💼', rarity: 'uncommon' },
   { id: 'big_spender', name: 'בזבזן', desc: 'אם מסיימים שלב עם 0₪: +10₪', cost: 8, icon: '🤑', rarity: 'rare' },
-  { id: 'banker', name: 'בנקאי', desc: '+1₪ לכל 10 נקודות', cost: 10, icon: '🏛️', rarity: 'rare' },
+  { id: 'banker', name: 'בנקאי', desc: '+1₪ לכל 100 נקודות (מקס׳ 10₪)', cost: 10, icon: '🏛️', rarity: 'rare' },
   { id: 'lucky_money', name: 'מזל עשירים', desc: '10% סיכוי: +5₪ אחרי כל מילה', cost: 7, icon: '🍀', rarity: 'uncommon' },
   { id: 'money_maker', name: 'עושה כסף', desc: '+1₪ אחרי כל מילה שמשחקים', cost: 9, icon: '💵', rarity: 'rare' },
   
@@ -1376,7 +1376,6 @@ const JOKERS = [
   { id: 'sharp_mind', name: 'חשיבה חדה', desc: 'כל 5 מילים: +1 קבוע למכפיל הבסיסי (צובר!)', cost: 16, icon: '🧠', rarity: 'legendary' },
   { id: 'coin_flip', name: 'הטלת מטבע', desc: '50% לכל מילה: ×3 מכפיל או +0 (מזל!)', cost: 6, icon: '🪙', rarity: 'uncommon' },
   { id: 'echo', name: 'הד', desc: 'האות האחרונה מוסיפה ×2 גם לאות הראשונה', cost: 10, icon: '🔊', rarity: 'rare' },
-  { id: 'fibonacci', name: 'פיבונאצ׳י', desc: 'אם ערכי האותיות הם סדרת פיבונאצ׳י: ×15!', cost: 13, icon: '🌀', rarity: 'legendary' },
   { id: 'letter_thief', name: 'גנב אותיות', desc: 'לאחר כל מילה: האות הכי יקרה ביד שווה ×2 בפעם הבאה', cost: 12, icon: '🦝', rarity: 'rare' },
   { id: 'final_power', name: 'כוח סופי', desc: 'האות הסופית של המילה (ה-ן,ם,ף,ך,ץ): ×5', cost: 10, icon: '🏁', rarity: 'rare' },
   { id: 'lucky_alef', name: 'אלף מזל', desc: 'אם יש א במילה: +30 נקודות נוספות', cost: 7, icon: 'א', rarity: 'uncommon' },
@@ -1408,6 +1407,12 @@ const VOUCHERS = [
   { id: 'extra_card_shop',name: 'חנות מורחבת',   desc: '+1 קלף נוסף בכל חנות',           cost: 11, icon: '🛒', type: 'extra_shop_card' },
   { id: 'mega_scout',     name: 'חוקר ענק',      desc: '4 ג׳וקרים בחנות (במקום 3)',      cost: 13, icon: '🔭', type: 'extra_joker_shop' },
   { id: 'voucher_master', name: 'אדון הבונוסים', desc: '3 בונוסים בחנות (במקום 2)',       cost: 14, icon: '🎁', type: 'extra_voucher_shop' },
+  { id: 'word2_boost',    name: 'שדרוג 2 אותיות', desc: '+0.2 למכפיל מילים של 2 אותיות', cost: 5,  icon: '2️⃣',  type: 'word_mult_boost', wordLen: 2, boostAmount: 0.2 },
+  { id: 'word3_boost',    name: 'שדרוג 3 אותיות', desc: '+0.3 למכפיל מילים של 3 אותיות', cost: 6,  icon: '3️⃣',  type: 'word_mult_boost', wordLen: 3, boostAmount: 0.3 },
+  { id: 'word4_boost',    name: 'שדרוג 4 אותיות', desc: '+0.4 למכפיל מילים של 4 אותיות', cost: 7,  icon: '4️⃣',  type: 'word_mult_boost', wordLen: 4, boostAmount: 0.4 },
+  { id: 'word5_boost',    name: 'שדרוג 5 אותיות', desc: '+0.5 למכפיל מילים של 5 אותיות', cost: 8,  icon: '5️⃣',  type: 'word_mult_boost', wordLen: 5, boostAmount: 0.5 },
+  { id: 'word6_boost',    name: 'שדרוג 6 אותיות', desc: '+0.6 למכפיל מילים של 6 אותיות', cost: 10, icon: '6️⃣',  type: 'word_mult_boost', wordLen: 6, boostAmount: 0.6, requires: 'sixth_letter' },
+  { id: 'sixth_letter',   name: 'האות השישית',    desc: 'אפשר לבנות מילים עם 6 אותיות!', cost: 15, icon: '✡️', type: 'sixth_letter' },
 ];
 
 const DIFFICULTIES = {
@@ -1537,7 +1542,7 @@ function getCardValue(card) {
   return Math.floor(value);
 }
 
-function calculateScore(cards, jokers, bossBlind, megaComboMult = 1) {
+function calculateScore(cards, jokers, bossBlind, megaComboMult = 1, wordMultBoosts = {}) {
   /* 
   📊 הסבר מערכת הניקוד:
   
@@ -1635,11 +1640,11 @@ function calculateScore(cards, jokers, bossBlind, megaComboMult = 1) {
   });
   
   // בונוס בסיס
-  const baseChips = { 2: 10, 3: 20, 4: 40, 5: 60 }[wordLength] || 10;
-  const baseMult = { 2: 1, 3: 2, 4: 4, 5: 5 }[wordLength] || 1;
+  const baseChips = { 2: 10, 3: 20, 4: 40, 5: 60, 6: 80 }[wordLength] || 10;
+  const baseMult = { 2: 1, 3: 2, 4: 4, 5: 5, 6: 7 }[wordLength] || 1;
   
   chips += baseChips;
-  mult = baseMult;
+  mult = baseMult + (wordMultBoosts[wordLength] || 0);
   
   // ג'וקרים שנותנים בונוס צ'יפס
   jokers.forEach(joker => {
@@ -1855,11 +1860,6 @@ function calculateScore(cards, jokers, bossBlind, megaComboMult = 1) {
     if (joker.id === 'echo' && cards.length >= 2) {
       chips += getCardValue(cards[0]) * 2;
     }
-    if (joker.id === 'fibonacci') {
-      const fibs = new Set([1, 2, 3, 5, 8, 13, 21]);
-      const allFib = cards.every(c => fibs.has(c.value));
-      if (allFib && cards.length >= 3) mult *= 15;
-    }
     if (joker.id === 'final_power') {
       const lastCard = cards[cards.length - 1];
       if (lastCard && ['ן','ם','ף','ך','ץ'].includes(lastCard.letter)) {
@@ -1899,7 +1899,7 @@ function validateBossChallenge(cards, bossBlind) {
       break;
     case 'long_only':
       if (cards.length < 4) {
-        return { valid: false, reason: 'רק מילים בנות 4-5 אותיות!' };
+        return { valid: false, reason: 'רק מילים בנות 4+ אותיות!' };
       }
       break;
     case 'short_only':
@@ -2108,6 +2108,8 @@ function Game() {
   const [confirmPurchase, setConfirmPurchase] = useState(null); // { type, item }
   const [showShopDeck, setShowShopDeck] = useState(false);
   const [jokerDetail, setJokerDetail] = useState(null); // for mobile tap detail
+  const [maxWordLength, setMaxWordLength] = useState(5);
+  const [wordMultBoosts, setWordMultBoosts] = useState({ 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 });
 
   const startGame = (kids = false, selectedDifficulty = 'normal') => {
     setKidsMode(kids);
@@ -2125,6 +2127,8 @@ function Game() {
     setVouchers([]);
     setShowConfetti(false);
     setCurrentBossBlind(null);
+    setMaxWordLength(5);
+    setWordMultBoosts({ 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 });
     
     // ערבב אתגרי בוס באקראי!
     const bossList = [...BOSS_BLINDS];
@@ -2146,13 +2150,13 @@ function Game() {
     
     if (selected.find(c => c.id === card.id)) {
       setSelected(selected.filter(c => c.id !== card.id));
-    } else if (selected.length < 5) {
+    } else if (selected.length < maxWordLength) {
       setSelected([...selected, card]);
     }
   };
 
   const playHand = async () => {
-    if (selected.length < 2 || selected.length > 5) return;
+    if (selected.length < 2 || selected.length > maxWordLength) return;
 
     // בדיקת אתגר בוס
     if (currentBossBlind) {
@@ -2212,7 +2216,7 @@ function Game() {
       return c;
     });
 
-    let points = calculateScore(cardsToScore, jokers, currentBossBlind, megaComboMult);
+    let points = calculateScore(cardsToScore, jokers, currentBossBlind, megaComboMult, wordMultBoosts);
     
     // בוס "היקר"
     if (currentBossBlind?.id === 'expensive') {
@@ -2241,7 +2245,7 @@ function Game() {
     
     // 💰 ג'וקרים כלכליים
     let bonusMoney = 0;
-    if (jokers.some(j => j.id === 'banker')) bonusMoney += Math.floor(points / 10);
+    if (jokers.some(j => j.id === 'banker')) bonusMoney += Math.min(10, Math.floor(points / 100));
     if (jokers.some(j => j.id === 'lucky_money') && Math.random() < 0.1) bonusMoney += 5;
     if (jokers.some(j => j.id === 'money_maker')) bonusMoney += 1;
     if (bonusMoney > 0) setMoney(money + bonusMoney);
@@ -2284,6 +2288,9 @@ function Game() {
       }
       if (jokers.some(j => j.id === 'big_spender') && money === 0) {
         reward += 10;
+      }
+      if (jokers.some(j => j.id === 'overachiever') && newScore >= targetScore * 1.5) {
+        reward += 15;
       }
       
       setMoney(money + bonusMoney + reward);
@@ -2442,6 +2449,12 @@ function Game() {
       if (voucher.type === 'free_reroll') {
         setHasFreeReroll(true);
       }
+      if (voucher.type === 'sixth_letter') {
+        setMaxWordLength(6);
+      }
+      if (voucher.type === 'word_mult_boost') {
+        setWordMultBoosts(prev => ({ ...prev, [voucher.wordLen]: (prev[voucher.wordLen] || 0) + voucher.boostAmount }));
+      }
     }
   };
 
@@ -2574,7 +2587,7 @@ function Game() {
           </div>
           
           <div className="bg-black/40 backdrop-blur-sm p-5 rounded-2xl mb-4 space-y-3 text-sm">
-            <div className="flex items-start gap-2"><span className="text-xl">🃏</span><span>בחר 2-5 אותיות מהיד שלך וצור מילה בעברית</span></div>
+            <div className="flex items-start gap-2"><span className="text-xl">🃏</span><span>בחר 2-{maxWordLength} אותיות מהיד שלך וצור מילה בעברית</span></div>
             <div className="flex items-start gap-2"><span className="text-xl">🎯</span><span>הגע ליעד הנקודות לפני שהידיים נגמרות</span></div>
             <div className="flex items-start gap-2"><span className="text-xl">🔄</span><span>זרוק קלפים שלא מתאימים לך כדי לקבל חדשים</span></div>
             <div className="flex items-start gap-2"><span className="text-xl">🏪</span><span>בסוף כל שלב — חנות! קנה ג׳וקרים ושדרוגים</span></div>
@@ -2692,8 +2705,9 @@ function Game() {
 
   if (gameMode === 'blindSelect') {
     const config = BLIND_CONFIGS[blind];
+    const diffConfig = DIFFICULTIES[difficulty];
     const baseScore = 300 * Math.pow(2, ante - 1);
-    const newTargetScore = Math.floor(baseScore * config.scoreMultiplier);
+    const newTargetScore = Math.floor(baseScore * config.scoreMultiplier * diffConfig.scoreMultiplier);
     // חשוב: השתמש בבוס מהרשימה המעורבבת כדי שהתיאור יתאים למה שיקרה בפועל!
     const bossBlind = blind === 'boss' ? (shuffledBosses[Math.min(ante - 1, shuffledBosses.length - 1)] || shuffledBosses[0]) : null;
     // הבוס הבא (לתצוגה מוקדמת)
@@ -2866,6 +2880,7 @@ function Game() {
                   <div>• 3 אותיות: +20 צ׳יפס × 2</div>
                   <div>• 4 אותיות: +40 צ׳יפס × 4</div>
                   <div>• 5 אותיות: +60 צ׳יפס × 5</div>
+                  <div>• 6 אותיות: +80 צ׳יפס × 7 (דורש בונוס!)</div>
                 </div>
                 <div className="mt-3 p-3 bg-yellow-900/40 rounded-lg text-sm">
                   <strong>נוסחה:</strong> (סכום אותיות + בונוס) × מכפיל
@@ -2984,7 +2999,14 @@ function Game() {
                 <div className="text-xl font-bold text-yellow-400 mb-2">{jokerDetail.name}</div>
                 <div className="text-sm text-gray-300 mb-3">{jokerDetail.desc}</div>
                 <div className="text-xs text-purple-300 mb-4">נדירות: {jokerDetail.rarity}</div>
-                <button onClick={() => setJokerDetail(null)} className="px-6 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition">סגור</button>
+                <div className="flex gap-3 justify-center">
+                  {jokerDetail.canSell && (
+                    <button onClick={() => { sellJoker(jokerDetail); setJokerDetail(null); }} className="px-6 py-2 bg-red-700 rounded-lg hover:bg-red-600 transition font-bold">
+                      💰 מכור ({Math.floor(jokerDetail.cost / 2)}₪)
+                    </button>
+                  )}
+                  <button onClick={() => setJokerDetail(null)} className="px-6 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition">סגור</button>
+                </div>
               </div>
             </div>
           </div>
@@ -3023,13 +3045,12 @@ function Game() {
             <div className="flex gap-1 flex-wrap">
               {jokers.map((joker) => (
                 <div key={joker.id} className="relative group">
-                  <div onClick={() => setJokerDetail(joker)} className="w-10 h-10 bg-gradient-to-br from-green-700 to-green-900 rounded-lg flex items-center justify-center text-lg cursor-pointer hover:scale-110 transition border border-green-500">
+                  <div onClick={() => setJokerDetail({ ...joker, canSell: true })} className="w-10 h-10 bg-gradient-to-br from-green-700 to-green-900 rounded-lg flex items-center justify-center text-lg cursor-pointer hover:scale-110 transition border border-green-500">
                     {joker.icon}
                   </div>
                   <div className="hidden md:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-48 bg-black/95 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 text-xs">
                     <div className="font-bold text-yellow-400">{joker.icon} {joker.name}</div>
                     <div className="text-gray-300">{joker.desc}</div>
-                    <button onClick={(e) => { e.stopPropagation(); sellJoker(joker); }} className="mt-1 w-full py-1 bg-red-700 rounded text-xs hover:bg-red-600">מכור ({Math.floor(joker.cost / 2)}₪)</button>
                   </div>
                 </div>
               ))}
@@ -3037,40 +3058,45 @@ function Game() {
           </div>
         )}
 
-        {/* Main shop grid */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 overflow-hidden min-h-0">
-          {/* Jokers for sale */}
-          <div className="bg-black/20 p-2 rounded-xl overflow-hidden flex flex-col">
-            <div className="text-xs font-bold text-blue-300 mb-1">🃏 ג'וקרים ({jokers.length}/{maxJokers})</div>
-            <div className="flex gap-2 flex-wrap flex-1 content-start">
+        {/* Main shop content */}
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
+          {/* Jokers for sale - centered and prominent */}
+          <div className="bg-black/20 p-3 rounded-xl">
+            <div className="text-xs font-bold text-blue-300 mb-2 text-center">🃏 ג'וקרים לקנייה ({jokers.length}/{maxJokers})</div>
+            <div className="flex gap-3 justify-center flex-wrap">
               {shopJokers.length > 0 ? shopJokers.map(joker => (
                 <div key={joker.id} className="relative group flex-shrink-0">
                   <div
                     onClick={() => {
                       if (money >= joker.cost && jokers.length < maxJokers) {
                         setConfirmPurchase({ type: 'joker', item: joker });
+                      } else {
+                        setJokerDetail(joker);
                       }
                     }}
-                    className={"w-20 h-24 bg-gradient-to-br rounded-lg border-2 flex flex-col items-center justify-center p-1 transition-all cursor-pointer " + 
+                    className={"w-28 md:w-32 bg-gradient-to-br rounded-xl border-2 flex flex-col items-center p-2 md:p-3 transition-all cursor-pointer " + 
                       (joker.rarity === 'legendary' ? 'from-purple-600 to-purple-900 border-purple-400' : joker.rarity === 'rare' ? 'from-blue-600 to-blue-800 border-blue-400' : joker.rarity === 'uncommon' ? 'from-green-600 to-green-800 border-green-400' : 'from-gray-600 to-gray-800 border-gray-400') +
                       (money >= joker.cost && jokers.length < maxJokers ? ' hover:scale-105 hover:shadow-lg' : ' opacity-50')}
                   >
-                    <div className="text-2xl">{joker.icon}</div>
-                    <div className="text-[9px] font-bold text-center leading-tight mt-0.5">{joker.name}</div>
-                    <div className="text-xs font-bold text-yellow-400 mt-auto">{joker.cost}₪</div>
+                    <div className="text-3xl md:text-4xl mb-1">{joker.icon}</div>
+                    <div className="text-[10px] md:text-xs font-bold text-center leading-tight">{joker.name}</div>
+                    <div className="text-[9px] md:text-[10px] text-white/70 text-center leading-tight mt-0.5 line-clamp-2">{joker.desc}</div>
+                    <div className="text-sm font-bold text-yellow-400 mt-auto pt-1">{joker.cost}₪</div>
                   </div>
-                  <div className="hidden md:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-48 bg-black/95 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 text-xs">
-                    <div className="font-bold text-yellow-400">{joker.icon} {joker.name}</div>
-                    <div className="text-gray-300">{joker.desc}</div>
-                    <div className="text-purple-300 mt-1">{joker.rarity}</div>
+                  {/* Tooltip - desktop, positioned above */}
+                  <div className="hidden md:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-black/95 text-white p-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 text-xs shadow-xl border border-white/10">
+                    <div className="font-bold text-yellow-400 text-sm mb-1">{joker.icon} {joker.name}</div>
+                    <div className="text-gray-200 leading-relaxed">{joker.desc}</div>
+                    <div className="text-purple-300 mt-2 text-[10px]">נדירות: {joker.rarity === 'legendary' ? '🟣 אגדי' : joker.rarity === 'rare' ? '🔵 נדיר' : joker.rarity === 'uncommon' ? '🟢 לא נפוץ' : '⚪ נפוץ'}</div>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-black/95"></div>
                   </div>
                 </div>
-              )) : <div className="text-gray-500 text-xs">אין ג'וקרים זמינים</div>}
+              )) : <div className="text-gray-500 text-sm">אין ג'וקרים זמינים</div>}
             </div>
           </div>
 
-          {/* Right column: Vouchers + Upgrades + Cards */}
-          <div className="flex flex-col gap-2 overflow-hidden">
+          {/* Bottom row: Vouchers + Upgrades + Cards side by side */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             {/* Vouchers */}
             {shopVouchers.length > 0 && (
               <div className="bg-black/20 p-2 rounded-xl">
@@ -3198,10 +3224,10 @@ function Game() {
   // ===============================
 
   const selectedWord = selected.map(c => c.letter).join('');
-  const selectedScore = selected.length >= 2 ? calculateScore(selected, jokers, currentBossBlind, megaComboMult) : 0;
+  const selectedScore = selected.length >= 2 ? calculateScore(selected, jokers, currentBossBlind, megaComboMult, wordMultBoosts) : 0;
 
   return (
-    <div className="min-h-screen p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+    <div className="min-h-screen p-2 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
       {showConfetti && <Confetti />}
       
       {/* מציג קלפים שנותרו */}
@@ -3306,74 +3332,66 @@ function Game() {
       
       <div className="max-w-7xl mx-auto">
         {/* סטטוס בר */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 bg-black/40 backdrop-blur-sm p-3 md:p-5 rounded-xl shadow-2xl">
+        <div className="flex items-center gap-2 md:gap-4 mb-2 bg-black/40 backdrop-blur-sm p-2 md:p-3 rounded-xl shadow-2xl flex-wrap">
           {/* ניקוד */}
-          <div>
-            <div className="text-xs md:text-sm text-gray-400 mb-1">
+          <div className="flex-1 min-w-[140px]">
+            <div className="text-[10px] md:text-xs text-gray-400">
               Ante {ante} - {blind === 'small' ? '🟢 קטן' : blind === 'big' ? '🟡 גדול' : '🔴 בוס'}
             </div>
-            <div className="text-xl md:text-3xl font-bold mb-2">
+            <div className="text-lg md:text-2xl font-bold">
               {score.toLocaleString()} / {targetScore.toLocaleString()}
             </div>
-            <div className="w-full h-3 md:h-4 bg-gray-700 rounded-full overflow-hidden shadow-inner">
+            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 transition-all duration-500 shadow-lg"
+                className="h-full bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 transition-all duration-500"
                 style={{ width: `${Math.min(100, (score / targetScore) * 100)}%` }}
               />
             </div>
           </div>
           
-          {/* כסף וחפיסה */}
+          {/* כסף + חפיסה */}
           <div className="text-center">
-            <div className="text-yellow-400 text-2xl md:text-4xl font-bold drop-shadow-lg">💰 {money}₪</div>
-            {kidsMode && (
-              <div className="text-xs text-green-400 mt-1 bg-green-900/30 px-3 py-1 rounded-full inline-block">
-                👶 מצב ילדים
-              </div>
-            )}
-            
-            {/* מונה קלפים + כפתור לצפייה */}
+            <div className="text-yellow-400 text-xl md:text-2xl font-bold">💰 {money}₪</div>
             <button
               onClick={() => setShowDeckViewer(!showDeckViewer)}
-              className="mt-2 px-3 py-1.5 md:px-4 md:py-2 bg-gradient-to-r from-purple-600 to-purple-800 rounded-lg hover:from-purple-700 hover:to-purple-900 transition-all shadow-lg text-xs md:text-sm font-bold"
+              className="px-2 py-0.5 bg-purple-700 rounded text-[10px] md:text-xs hover:bg-purple-600 transition font-bold"
             >
               🎴 {deck.length} קלפים
             </button>
           </div>
           
-          {/* ידיים וזריקות - בולטות במיוחד */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-3 rounded-lg text-center shadow-lg border-2 border-blue-400">
-              <div className="text-3xl md:text-4xl font-bold text-white">{handsLeft}</div>
-              <div className="text-xs md:text-sm text-blue-100">🃏 ידיים</div>
+          {/* ידיים וזריקות */}
+          <div className="flex gap-1">
+            <div className="bg-blue-700 px-3 py-1 rounded-lg text-center border border-blue-400">
+              <div className="text-xl md:text-2xl font-bold">{handsLeft}</div>
+              <div className="text-[9px] text-blue-100">🃏 ידיים</div>
             </div>
-            <div className="bg-gradient-to-br from-orange-600 to-orange-800 p-3 rounded-lg text-center shadow-lg border-2 border-orange-400">
-              <div className="text-3xl md:text-4xl font-bold text-white">{discardsLeft}</div>
-              <div className="text-xs md:text-sm text-orange-100">🔄 זריקות</div>
+            <div className="bg-orange-700 px-3 py-1 rounded-lg text-center border border-orange-400">
+              <div className="text-xl md:text-2xl font-bold">{discardsLeft}</div>
+              <div className="text-[9px] text-orange-100">🔄 זריקות</div>
             </div>
           </div>
         </div>
 
         {/* ג'וקרים */}
         {jokers.length > 0 && (
-          <div className="mb-4 flex gap-2 bg-black/30 backdrop-blur-sm p-3 rounded-xl overflow-x-auto shadow-lg flex-wrap">
+          <div className="mb-1 flex gap-1 bg-black/30 p-1.5 rounded-lg overflow-x-auto flex-wrap">
             {jokers.map(joker => (
               <div key={joker.id} className="relative group">
                 <JokerCard joker={joker} small />
-                {/* מונה עבור ג'וקרים מצטברים */}
                 {joker.id === 'mega_combo' && (
-                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                     ×{megaComboMult}
                   </div>
                 )}
                 {joker.id === 'streak' && streakCount >= 3 && (
-                  <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
+                  <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                     🔥
                   </div>
                 )}
                 {joker.id === 'streak' && streakCount < 3 && (
-                  <div className="absolute -top-2 -right-2 bg-gray-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
-                    {streakCount}/3
+                  <div className="absolute -top-1 -right-1 bg-gray-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {streakCount}
                   </div>
                 )}
               </div>
@@ -3383,25 +3401,22 @@ function Game() {
 
         {/* אתגר בוס */}
         {currentBossBlind && (
-          <div className="mb-4 bg-red-900/30 backdrop-blur-sm p-4 rounded-xl border-2 border-red-500 animate-pulse">
-            <div className="text-center">
-              <span className="text-2xl mr-2">{currentBossBlind.icon}</span>
-              <span className="font-bold text-red-300 text-lg">{currentBossBlind.name}:</span>
-              <span className="text-white text-lg mr-2">{currentBossBlind.desc}</span>
-            </div>
+          <div className="mb-1 bg-red-900/30 p-2 rounded-lg border border-red-500 text-center text-sm">
+            <span className="mr-1">{currentBossBlind.icon}</span>
+            <span className="font-bold text-red-300">{currentBossBlind.name}:</span>
+            <span className="text-white mr-1">{currentBossBlind.desc}</span>
           </div>
         )}
 
         {/* יד הקלפים */}
-        <div className="mb-6">
-          {/* מציג את הבחירה הנוכחית של הwildcard */}
+        <div className="mb-1">
           {wildcardChoice && selected.some(c => c.isWildcard) && (
-            <div className="text-center mb-2 text-yellow-300 text-sm font-bold">
-              🌟 הכוכב ישמש כ: <span className="text-2xl">{wildcardChoice}</span>
-              <button onClick={() => setWildcardChoice(null)} className="mr-2 text-xs text-gray-400 underline">שנה</button>
+            <div className="text-center mb-1 text-yellow-300 text-xs font-bold">
+              🌟 הכוכב ישמש כ: <span className="text-lg">{wildcardChoice}</span>
+              <button onClick={() => setWildcardChoice(null)} className="mr-2 text-[10px] text-gray-400 underline">שנה</button>
             </div>
           )}
-          <div className="flex justify-center gap-3 flex-wrap mb-6 min-h-[140px]">
+          <div className="flex justify-center gap-2 flex-wrap mb-2 min-h-[100px]">
             {hand.map(card => (
               <Card
                 key={card.id}
@@ -3415,84 +3430,87 @@ function Game() {
 
           {/* תצוגת מילה נבחרת */}
           {selected.length > 0 && (
-            <div className="text-center mb-6 bg-black/40 backdrop-blur-sm p-6 rounded-xl shadow-2xl">
-              <div className="text-5xl font-bold mb-3 tracking-wider text-yellow-300 drop-shadow-lg">
+            <div className="text-center mb-2 bg-black/40 p-3 rounded-xl">
+              <div className="text-3xl font-bold tracking-wider text-yellow-300">
                 {selectedWord}
               </div>
               {selected.length >= 2 && (
                 <div>
-                  <div className="text-3xl text-green-400 font-bold animate-pulse mb-3">
+                  <div className="text-xl text-green-400 font-bold">
                     {selectedScore.toLocaleString()} נקודות
                   </div>
                   
-                  {/* פירוט מהיר */}
-                  <div className="text-sm space-y-1 bg-black/30 p-3 rounded-lg max-h-40 overflow-y-auto">
-                    <div className="text-blue-300 font-bold">
-                      💎 אותיות: {selected.reduce((sum, c) => sum + getCardValue(c), 0)}
-                    </div>
-                    <div className="text-green-300 font-bold">
-                      ⭐ בונוס: +{({ 2: 10, 3: 20, 4: 40, 5: 60 })[selected.length] || 10}
-                    </div>
-                    <div className="text-purple-300 font-bold">
-                      ✖️ מכפיל: ×{({ 2: 1, 3: 2, 4: 4, 5: 5 })[selected.length] || 1}
-                    </div>
-                    
-                    {/* בונוסים מג'וקרים */}
-                    {jokers.length > 0 && (
-                      <div className="border-t border-gray-600 pt-2 mt-2">
-                        <div className="text-yellow-400 text-xs font-bold mb-1">🃏 בונוסים מג'וקרים:</div>
-                        {jokers.some(j => j.id === 'doubles') && selected.reduce((count, c) => {
-                          const letterCount = selected.filter(card => card.letter === c.letter).length;
-                          return Math.max(count, letterCount);
-                        }, 0) >= 2 && (
-                          <div className="text-yellow-300 text-xs">• כפילות: +20 צ'יפס</div>
-                        )}
-                        {jokers.some(j => j.id === 'five_stars') && selected.length === 5 && (
-                          <div className="text-yellow-300 text-xs">• חמש כוכבים: ×5 מכפיל!</div>
-                        )}
-                        {jokers.some(j => j.id === 'rainbow') && (() => {
-                          const colors = new Set(selected.map(c => c.color).filter(c => c !== 'rainbow'));
-                          return colors.size === 4;
-                        })() && (
-                          <div className="text-yellow-300 text-xs">• צבעי הקשת: ×3 מכפיל!</div>
-                        )}
-                        {jokers.some(j => j.id === 'monochrome') && (() => {
-                          const colors = new Set(selected.map(c => c.color).filter(c => c !== 'rainbow'));
-                          return colors.size === 1 && selected.length >= 3;
-                        })() && (
-                          <div className="text-yellow-300 text-xs">• חד-גוני: ×5 מכפיל!</div>
-                        )}
-                        {jokers.some(j => j.id === 'big_head') && (
-                          <div className="text-yellow-300 text-xs">• ראש גדול: אות ראשונה ×4</div>
-                        )}
-                        {jokers.some(j => j.id === 'happy_end') && (
-                          <div className="text-yellow-300 text-xs">• סוף טוב: אות אחרונה ×4</div>
-                        )}
-                        {jokers.some(j => j.id === 'mega_combo') && (
-                          <div className="text-orange-300 text-xs">• מגה קומבו: +{megaComboMult} למכפיל (מילה {megaComboMult})</div>
-                        )}
-                        {jokers.some(j => j.id === 'double_mult') && (
-                          <div className="text-yellow-300 text-xs">• מכפיל כפול: ×2 מכפיל</div>
-                        )}
-                        {jokers.some(j => j.id === 'lucky_alef') && selected.some(c => c.letter === 'א') && (
-                          <div className="text-yellow-300 text-xs">• אלף מזל: +30 נקודות</div>
-                        )}
-                        {jokers.some(j => j.id === 'final_power') && selected.length > 0 && ['ן','ם','ף','ך','ץ'].includes(selected[selected.length-1]?.letter) && (
-                          <div className="text-yellow-300 text-xs">• כוח סופי: אות סופית ×5</div>
-                        )}
-                        {jokers.some(j => j.id === 'coin_flip') && (
-                          <div className="text-yellow-300 text-xs">• הטלת מטבע: 50% ×3 (אקראי!)</div>
-                        )}
-                        {jokers.some(j => j.id === 'lazy_joker') && streakCount > 0 && (
-                          <div className="text-yellow-300 text-xs">• ג׳וקר עצלן: +20 (לא זרקת!)</div>
-                        )}
+                  {showScoreBreakdown && (
+                    <div className="text-xs space-y-0.5 bg-black/30 p-2 rounded-lg mt-1 max-h-28 overflow-y-auto">
+                      <div className="text-blue-300 font-bold">
+                        💎 אותיות: {selected.reduce((sum, c) => sum + getCardValue(c), 0)}
                       </div>
-                    )}
-                  </div>
+                      <div className="text-green-300 font-bold">
+                        ⭐ בונוס: +{({ 2: 10, 3: 20, 4: 40, 5: 60, 6: 80 })[selected.length] || 10}
+                      </div>
+                      <div className="text-purple-300 font-bold">
+                        ✖️ מכפיל: ×{(({ 2: 1, 3: 2, 4: 4, 5: 5, 6: 7 })[selected.length] || 1) + (wordMultBoosts[selected.length] || 0)}
+                      </div>
+                      
+                      {jokers.length > 0 && (
+                        <div className="border-t border-gray-600 pt-1 mt-1">
+                          <div className="text-yellow-400 text-[10px] font-bold mb-0.5">🃏 בונוסים מג'וקרים:</div>
+                          {jokers.some(j => j.id === 'doubles') && selected.reduce((count, c) => {
+                            const letterCount = selected.filter(card => card.letter === c.letter).length;
+                            return Math.max(count, letterCount);
+                          }, 0) >= 2 && (
+                            <div className="text-yellow-300 text-[10px]">• כפילות: +20 צ'יפס</div>
+                          )}
+                          {jokers.some(j => j.id === 'five_stars') && selected.length === 5 && (
+                            <div className="text-yellow-300 text-[10px]">• חמש כוכבים: ×5!</div>
+                          )}
+                          {jokers.some(j => j.id === 'rainbow') && (() => {
+                            const colors = new Set(selected.map(c => c.color).filter(c => c !== 'rainbow'));
+                            return colors.size === 4;
+                          })() && (
+                            <div className="text-yellow-300 text-[10px]">• צבעי הקשת: ×3!</div>
+                          )}
+                          {jokers.some(j => j.id === 'monochrome') && (() => {
+                            const colors = new Set(selected.map(c => c.color).filter(c => c !== 'rainbow'));
+                            return colors.size === 1 && selected.length >= 3;
+                          })() && (
+                            <div className="text-yellow-300 text-[10px]">• חד-גוני: ×5!</div>
+                          )}
+                          {jokers.some(j => j.id === 'big_head') && (
+                            <div className="text-yellow-300 text-[10px]">• ראש גדול: אות ראשונה ×4</div>
+                          )}
+                          {jokers.some(j => j.id === 'happy_end') && (
+                            <div className="text-yellow-300 text-[10px]">• סוף טוב: אות אחרונה ×4</div>
+                          )}
+                          {jokers.some(j => j.id === 'mega_combo') && (
+                            <div className="text-orange-300 text-[10px]">• מגה קומבו: +{megaComboMult} למכפיל</div>
+                          )}
+                          {jokers.some(j => j.id === 'double_mult') && (
+                            <div className="text-yellow-300 text-[10px]">• מכפיל כפול: ×2</div>
+                          )}
+                          {jokers.some(j => j.id === 'lucky_alef') && selected.some(c => c.letter === 'א') && (
+                            <div className="text-yellow-300 text-[10px]">• אלף מזל: +30</div>
+                          )}
+                          {jokers.some(j => j.id === 'final_power') && selected.length > 0 && ['ן','ם','ף','ך','ץ'].includes(selected[selected.length-1]?.letter) && (
+                            <div className="text-yellow-300 text-[10px]">• כוח סופי: אות סופית ×5</div>
+                          )}
+                          {jokers.some(j => j.id === 'coin_flip') && (
+                            <div className="text-yellow-300 text-[10px]">• הטלת מטבע: 50% ×3</div>
+                          )}
+                          {jokers.some(j => j.id === 'lazy_joker') && streakCount > 0 && (
+                            <div className="text-yellow-300 text-[10px]">• עצלן: +20</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <button onClick={() => setShowScoreBreakdown(!showScoreBreakdown)} className="text-[10px] text-gray-400 underline mt-0.5">
+                    {showScoreBreakdown ? 'הסתר פירוט' : 'הצג פירוט'}
+                  </button>
                 </div>
               )}
               {selected.length < 2 && (
-                <div className="text-lg text-gray-400">
+                <div className="text-sm text-gray-400">
                   בחר לפחות 2 אותיות
                 </div>
               )}
@@ -3501,24 +3519,24 @@ function Game() {
 
           {/* אישור מילה - מצב ילדים */}
           {needsApproval && (
-            <div className="bg-gradient-to-br from-yellow-500/30 to-orange-500/30 border-4 border-yellow-500 rounded-xl p-6 mb-6 shadow-2xl backdrop-blur-sm">
-              <div className="text-center mb-4">
-                <div className="text-3xl font-bold mb-3 text-yellow-300">
+            <div className="bg-gradient-to-br from-yellow-500/30 to-orange-500/30 border-2 border-yellow-500 rounded-xl p-3 mb-2">
+              <div className="text-center mb-2">
+                <div className="text-2xl font-bold text-yellow-300">
                   המילה: {selectedWord}
                 </div>
-                <div className="text-xl mb-2 text-white">מבוגר, האם המילה נכונה?</div>
-                <div className="text-green-400 font-bold text-2xl">{selectedScore.toLocaleString()} נקודות</div>
+                <div className="text-sm text-white">מבוגר, האם המילה נכונה?</div>
+                <div className="text-green-400 font-bold text-lg">{selectedScore.toLocaleString()} נקודות</div>
               </div>
-              <div className="flex gap-4 justify-center">
+              <div className="flex gap-3 justify-center">
                 <button
                   onClick={approveWord}
-                  className="px-12 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 rounded-xl font-bold text-xl transition-all transform hover:scale-110 shadow-xl"
+                  className="px-8 py-2 bg-green-600 hover:bg-green-700 rounded-xl font-bold text-lg transition-all"
                 >
-                  ✓ כן, נכונה
+                  ✓ נכונה
                 </button>
                 <button
                   onClick={rejectWord}
-                  className="px-12 py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl font-bold text-xl transition-all transform hover:scale-110 shadow-xl"
+                  className="px-8 py-2 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition-all"
                 >
                   ✗ לא נכונה
                 </button>
@@ -3528,14 +3546,14 @@ function Game() {
 
           {/* כפתורי פעולה */}
           {!needsApproval && (
-            <div className="flex justify-center gap-4">
+            <div className="flex justify-center gap-3">
               <button
                 onClick={playHand}
                 disabled={selected.length < 2}
                 className={`
-                  px-12 py-5 rounded-xl font-bold text-2xl transition-all transform shadow-2xl
+                  px-8 py-3 rounded-xl font-bold text-xl transition-all
                   ${selected.length >= 2
-                    ? 'bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 hover:scale-110 cursor-pointer'
+                    ? 'bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 hover:scale-105 cursor-pointer'
                     : 'bg-gray-600 cursor-not-allowed opacity-50'
                   }
                 `}
@@ -3547,14 +3565,14 @@ function Game() {
                 onClick={discardCards}
                 disabled={selected.length === 0 || discardsLeft <= 0}
                 className={`
-                  px-12 py-5 rounded-xl font-bold text-2xl transition-all transform shadow-2xl
+                  px-8 py-3 rounded-xl font-bold text-xl transition-all
                   ${selected.length > 0 && discardsLeft > 0
-                    ? 'bg-gradient-to-r from-orange-600 to-orange-800 hover:from-orange-700 hover:to-orange-900 hover:scale-110 cursor-pointer'
+                    ? 'bg-gradient-to-r from-orange-600 to-orange-800 hover:from-orange-700 hover:to-orange-900 hover:scale-105 cursor-pointer'
                     : 'bg-gray-600 cursor-not-allowed opacity-50'
                   }
                 `}
               >
-                🔄 זרוק קלפים
+                🔄 זרוק
               </button>
             </div>
           )}

@@ -2104,6 +2104,10 @@ function Game() {
   const [showWildcardPicker, setShowWildcardPicker] = useState(false);
   const [streakCount, setStreakCount] = useState(0); // מונה רצף ללא זריקה
   const [letterUsedInBlind, setLetterUsedInBlind] = useState({}); // לג'וקר "חוזר"
+  const [shopCards, setShopCards] = useState([]);
+  const [confirmPurchase, setConfirmPurchase] = useState(null); // { type, item }
+  const [showShopDeck, setShowShopDeck] = useState(false);
+  const [jokerDetail, setJokerDetail] = useState(null); // for mobile tap detail
 
   const startGame = (kids = false, selectedDifficulty = 'normal') => {
     setKidsMode(kids);
@@ -2134,7 +2138,7 @@ function Game() {
     setDeck(newDeck);
     setHand([]);
     
-    setGameMode('blindSelect');
+    setGameMode('gameIntro');
   };
 
   const toggleCard = (card) => {
@@ -2273,27 +2277,24 @@ function Game() {
       
       // 💰 בונוסים מג'וקרים כלכליים
       if (jokers.some(j => j.id === 'thrifty')) {
-        reward += discardsLeft * 2; // +2₪ לכל זריקה שנשארה
+        reward += discardsLeft * 2;
       }
       if (jokers.some(j => j.id === 'efficient')) {
-        reward += newHandsLeft * 3; // +3₪ לכל יד שנשארה
+        reward += newHandsLeft * 3;
       }
       if (jokers.some(j => j.id === 'big_spender') && money === 0) {
-        reward += 10; // +10₪ אם סיימנו בלי כסף
+        reward += 10;
       }
       
       setMoney(money + bonusMoney + reward);
       
       setTimeout(() => {
-        setGameMode('shop');
-        setRerollUsedThisShop(false); // איפוס רענון לסבב חדש
-        generateShop();
-      }, 1000);
+        setGameMode('stageWin');
+      }, 600);
     } else if (newHandsLeft <= 0) {
       setTimeout(() => {
-        alert('Game Over! הגעת ל-' + newScore + ' נקודות. נסה שוב!');
-        setGameMode('menu');
-      }, 1000);
+        setGameMode('stageLoss');
+      }, 600);
     }
   };
 
@@ -2305,8 +2306,7 @@ function Game() {
     
     if (newHandsLeft <= 0) {
       setTimeout(() => {
-        alert('Game Over! הידיים נגמרו. נסה שוב!');
-        setGameMode('menu');
+        setGameMode('stageLoss');
       }, 500);
     }
   };
@@ -2398,8 +2398,6 @@ function Game() {
     }
     setShopCards(shopCards);
   };
-
-  const [shopCards, setShopCards] = useState([]);
 
   const buyCard = (card) => {
     if (money >= card.cost) {
@@ -2560,17 +2558,152 @@ function Game() {
   // מסכים
   // ===============================
 
+  // 🎬 מסך פתיחה למשחק חדש - הוראות קצרות + הצגת החפיסה
+  if (gameMode === 'gameIntro') {
+    const allCards = deck;
+    const colorCounts = { red: 0, blue: 0, yellow: 0, green: 0, rainbow: 0 };
+    allCards.forEach(c => { if (colorCounts[c.color] !== undefined) colorCounts[c.color]++; });
+    
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+        <div className="max-w-2xl w-full">
+          <div className="text-center mb-6">
+            <div className="text-6xl mb-3">🎴</div>
+            <h1 className="text-4xl font-bold text-yellow-400 mb-2">מוכנים לשחק!</h1>
+            <p className="text-gray-300">הנה תקציר מהיר:</p>
+          </div>
+          
+          <div className="bg-black/40 backdrop-blur-sm p-5 rounded-2xl mb-4 space-y-3 text-sm">
+            <div className="flex items-start gap-2"><span className="text-xl">🃏</span><span>בחר 2-5 אותיות מהיד שלך וצור מילה בעברית</span></div>
+            <div className="flex items-start gap-2"><span className="text-xl">🎯</span><span>הגע ליעד הנקודות לפני שהידיים נגמרות</span></div>
+            <div className="flex items-start gap-2"><span className="text-xl">🔄</span><span>זרוק קלפים שלא מתאימים לך כדי לקבל חדשים</span></div>
+            <div className="flex items-start gap-2"><span className="text-xl">🏪</span><span>בסוף כל שלב — חנות! קנה ג׳וקרים ושדרוגים</span></div>
+            <div className="flex items-start gap-2"><span className="text-xl">📏</span><span>מילים ארוכות = יותר נקודות ומכפילים גבוהים</span></div>
+          </div>
+
+          <div className="bg-black/30 p-4 rounded-xl mb-4">
+            <h3 className="font-bold text-blue-300 mb-3 text-center">🎴 האותיות שהוגרלו לך ({allCards.length} קלפים)</h3>
+            <div className="flex justify-center gap-3 flex-wrap mb-3">
+              {Object.entries(COLOR_STYLES).map(([color, style]) => {
+                const count = colorCounts[color] || 0;
+                if (count === 0) return null;
+                return (
+                  <div key={color} className={"px-3 py-1 rounded-full bg-gradient-to-r " + style.gradient + " " + style.text + " text-sm font-bold"}>
+                    {style.icon} {count}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap gap-1 justify-center">
+              {allCards.sort((a, b) => (LETTER_VALUES[a.letter] || 0) - (LETTER_VALUES[b.letter] || 0)).map((card, i) => (
+                <div key={i} className={"w-8 h-10 rounded border flex items-center justify-center text-sm font-bold bg-gradient-to-br " + (COLOR_STYLES[card.color] || COLOR_STYLES.rainbow).gradient + " " + (COLOR_STYLES[card.color] || COLOR_STYLES.rainbow).text}>
+                  {card.letter}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setGameMode('blindSelect')}
+            className="w-full px-8 py-5 bg-gradient-to-r from-green-600 to-green-800 rounded-xl font-bold text-2xl hover:from-green-700 hover:to-green-900 transition-all transform hover:scale-105 shadow-xl"
+          >
+            🚀 יאללה!
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 🎉 מסך ניצחון שלב
+  if (gameMode === 'stageWin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 relative overflow-hidden">
+        <Confetti />
+        <div className="text-center relative z-10">
+          <div className="text-8xl mb-4 animate-bounce">🎉</div>
+          <h1 className="text-5xl font-bold text-yellow-400 mb-3" style={{textShadow: '0 0 30px rgba(250,204,21,0.5)'}}>כל הכבוד!</h1>
+          <div className="text-2xl text-green-400 font-bold mb-2">הגעת ל-{score.toLocaleString()} נקודות!</div>
+          <div className="text-lg text-gray-300 mb-6">היעד היה {targetScore.toLocaleString()} — עברת אותו! 🌟</div>
+          
+          <div className="flex justify-center gap-3 mb-6">
+            {['⭐','🌟','✨','💫','🎊'].map((emoji, i) => (
+              <span key={i} className="text-3xl" style={{animation: 'bounce 1s ease-in-out infinite', animationDelay: i * 0.15 + 's'}}>{emoji}</span>
+            ))}
+          </div>
+          
+          <button
+            onClick={() => {
+              setRerollUsedThisShop(false);
+              generateShop();
+              setGameMode('shop');
+            }}
+            className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl font-bold text-2xl hover:from-yellow-600 hover:to-orange-700 transition-all transform hover:scale-110 shadow-2xl text-black"
+          >
+            🏪 לחנות!
+          </button>
+        </div>
+        <style>{
+          "@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}"
+        }</style>
+      </div>
+    );
+  }
+
+  // 😢 מסך הפסד שלב
+  if (gameMode === 'stageLoss') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-red-900/30 to-slate-900 relative overflow-hidden">
+        <div className="text-center relative z-10">
+          <div className="text-7xl mb-4" style={{animation: 'shake 0.5s ease-in-out'}}>😮</div>
+          <h1 className="text-4xl font-bold text-blue-300 mb-3">לא נורא!</h1>
+          <div className="text-xl text-gray-300 mb-2">הגעת ל-{score.toLocaleString()} מתוך {targetScore.toLocaleString()} נקודות</div>
+          <div className="text-lg text-yellow-300 mb-6">בפעם הבאה בטוח תצליח! 💪</div>
+          
+          <div className="flex justify-center gap-2 mb-6">
+            {['💪','🔥','⚡'].map((emoji, i) => (
+              <span key={i} className="text-3xl" style={{animation: 'pulse 1.5s ease-in-out infinite', animationDelay: i * 0.3 + 's'}}>{emoji}</span>
+            ))}
+          </div>
+          
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                startGame(kidsMode, difficulty);
+              }}
+              className="w-64 px-8 py-4 bg-gradient-to-r from-green-600 to-green-800 rounded-xl font-bold text-xl hover:from-green-700 hover:to-green-900 transition-all transform hover:scale-105 shadow-xl"
+            >
+              🔄 בוא ננסה שוב!
+            </button>
+            <br/>
+            <button
+              onClick={() => setGameMode('menu')}
+              className="w-64 px-6 py-3 bg-gray-700 rounded-xl font-bold hover:bg-gray-600 transition-all"
+            >
+              🏠 תפריט ראשי
+            </button>
+          </div>
+        </div>
+        <style>{
+          "@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-5deg)}75%{transform:rotate(5deg)}}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.7;transform:scale(1.2)}}"
+        }</style>
+      </div>
+    );
+  }
+
   if (gameMode === 'blindSelect') {
     const config = BLIND_CONFIGS[blind];
     const baseScore = 300 * Math.pow(2, ante - 1);
     const newTargetScore = Math.floor(baseScore * config.scoreMultiplier);
     // חשוב: השתמש בבוס מהרשימה המעורבבת כדי שהתיאור יתאים למה שיקרה בפועל!
     const bossBlind = blind === 'boss' ? (shuffledBosses[Math.min(ante - 1, shuffledBosses.length - 1)] || shuffledBosses[0]) : null;
+    // הבוס הבא (לתצוגה מוקדמת)
+    const nextBossIndex = Math.min(ante - 1, shuffledBosses.length - 1);
+    const nextBoss = shuffledBosses[nextBossIndex] || shuffledBosses[0];
     
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
         <div className="max-w-2xl w-full bg-black/50 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border-4 border-white/20">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-5xl font-bold mb-2 text-yellow-400">
               {config.icon} {config.name}
             </h1>
@@ -2579,52 +2712,56 @@ function Game() {
             </div>
           </div>
 
-          <div className="space-y-6 mb-8">
-            {/* דרישות */}
-            <div className="bg-blue-900/50 p-6 rounded-xl border-2 border-blue-500">
-              <div className="text-xl font-bold mb-3 text-blue-300">🎯 דרישות:</div>
+          <div className="space-y-4 mb-6">
+            <div className="bg-blue-900/50 p-4 rounded-xl border-2 border-blue-500">
+              <div className="text-lg font-bold mb-1 text-blue-300">🎯 דרישות:</div>
               <div className="text-3xl font-bold text-white">
                 {newTargetScore.toLocaleString()} נקודות
               </div>
             </div>
 
-            {/* משאבים */}
-            <div className="bg-green-900/50 p-6 rounded-xl border-2 border-green-500">
-              <div className="text-xl font-bold mb-3 text-green-300">🎮 משאבים:</div>
-              <div className="grid grid-cols-2 gap-4 text-lg">
-                <div>
-                  🃏 <span className="font-bold">{bossBlind?.id === 'few_hands' ? 2 : config.hands}</span> ידיים
-                </div>
-                <div>
-                  🔄 <span className="font-bold">{bossBlind?.id === 'no_discards' ? 0 : config.discards}</span> זריקות
-                </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-green-900/50 p-3 rounded-xl border border-green-500 text-center">
+                <div className="text-2xl font-bold">{bossBlind?.id === 'few_hands' ? 2 : config.hands}</div>
+                <div className="text-xs text-green-300">🃏 ידיים</div>
+              </div>
+              <div className="bg-orange-900/50 p-3 rounded-xl border border-orange-500 text-center">
+                <div className="text-2xl font-bold">{bossBlind?.id === 'no_discards' ? 0 : config.discards}</div>
+                <div className="text-xs text-orange-300">🔄 זריקות</div>
+              </div>
+              <div className="bg-yellow-900/50 p-3 rounded-xl border border-yellow-500 text-center">
+                <div className="text-2xl font-bold">{config.reward}₪</div>
+                <div className="text-xs text-yellow-300">💰 פרס</div>
               </div>
             </div>
 
-            {/* פרס */}
-            <div className="bg-yellow-900/50 p-6 rounded-xl border-2 border-yellow-500">
-              <div className="text-xl font-bold mb-3 text-yellow-300">💰 פרס:</div>
-              <div className="text-2xl font-bold text-white">
-                {config.reward}₪ + 1₪ עבור כל יד שנשארה
-              </div>
-            </div>
-
-            {/* אתגר בוס */}
+            {/* אתגר בוס נוכחי */}
             {bossBlind && (
-              <div className="bg-red-900/50 p-6 rounded-xl border-2 border-red-500 animate-pulse">
-                <div className="text-xl font-bold mb-3 text-red-300">
+              <div className="bg-red-900/50 p-4 rounded-xl border-2 border-red-500 animate-pulse">
+                <div className="text-lg font-bold mb-1 text-red-300">
                   {bossBlind.icon} אתגר בוס: {bossBlind.name}
                 </div>
-                <div className="text-lg text-white">
+                <div className="text-sm text-white">
                   {bossBlind.desc}
                 </div>
+              </div>
+            )}
+
+            {/* אזהרת בוס הבא - בכל שלב */}
+            {blind !== 'boss' && nextBoss && (
+              <div className="bg-red-900/20 p-3 rounded-xl border border-red-800/50">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-red-400">⚠️</span>
+                  <span className="text-red-300 font-bold">הבוס הבא: {nextBoss.icon} {nextBoss.name}</span>
+                </div>
+                <div className="text-xs text-red-200/70 mt-1 mr-6">{nextBoss.desc}</div>
               </div>
             )}
           </div>
 
           <button
             onClick={startBlind}
-            className="w-full px-8 py-6 bg-gradient-to-r from-green-600 to-green-800 rounded-xl font-bold text-2xl hover:from-green-700 hover:to-green-900 transition-all transform hover:scale-105 shadow-xl"
+            className="w-full px-8 py-5 bg-gradient-to-r from-green-600 to-green-800 rounded-xl font-bold text-2xl hover:from-green-700 hover:to-green-900 transition-all transform hover:scale-105 shadow-xl"
           >
             ▶️ התחל!
           </button>
@@ -2813,192 +2950,202 @@ function Game() {
 
   if (gameMode === 'shop') {
     return (
-      <div className="min-h-screen p-6 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex justify-between items-center mb-6 bg-black/30 p-4 rounded-xl">
-            <h1 className="text-4xl font-bold text-yellow-400">🏪 החנות</h1>
-            <div className="text-3xl font-bold text-yellow-400">💰 {money}₪</div>
+      <div className="min-h-screen p-3 md:p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex flex-col" style={{maxHeight: '100vh', overflow: 'hidden'}}>
+        {/* Purchase confirmation modal */}
+        {confirmPurchase && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setConfirmPurchase(null)}>
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-2xl border-2 border-yellow-400 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">{confirmPurchase.item.icon}</div>
+                <div className="text-xl font-bold text-yellow-400">{confirmPurchase.item.name}</div>
+                <div className="text-sm text-gray-300 mt-1">{confirmPurchase.item.desc}</div>
+                <div className="text-2xl font-bold text-yellow-300 mt-3">{confirmPurchase.item.cost}₪</div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => {
+                  if (confirmPurchase.type === 'joker') buyJoker(confirmPurchase.item);
+                  else if (confirmPurchase.type === 'voucher') buyVoucher(confirmPurchase.item);
+                  else if (confirmPurchase.type === 'upgrade') buyUpgrade(confirmPurchase.item);
+                  else if (confirmPurchase.type === 'card') buyCard(confirmPurchase.item);
+                  setConfirmPurchase(null);
+                }} className="flex-1 py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-xl font-bold text-lg hover:from-green-700 hover:to-green-900 transition-all">✓ קנה!</button>
+                <button onClick={() => setConfirmPurchase(null)} className="flex-1 py-3 bg-gray-700 rounded-xl font-bold text-lg hover:bg-gray-600 transition-all">✗ ביטול</button>
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* הג'וקרים שלי */}
-          {jokers.length > 0 && (
-            <div className="mb-8 bg-black/20 p-4 rounded-xl">
-              <h2 className="text-xl font-bold mb-4 text-green-300">הג'וקרים שלי ({jokers.length}/{maxJokers})</h2>
-              <div className="flex gap-4 flex-wrap">
-                {jokers.map((joker) => (
-                  <div key={joker.id} className="relative group">
-                    {/* קלף ג'וקר רגיל */}
-                    <JokerCard joker={joker} />
-                    
-                    {/* כפתור מכירה */}
-                    <button
-                      onClick={() => sellJoker(joker)}
-                      className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-red-700 font-bold z-20"
-                      title={`מכור ב-${Math.floor(joker.cost / 2)}₪`}
-                    >
-                      💰
-                    </button>
-                    
-                    {/* Tooltip עם פירוט - רק desktop */}
-                    <div className="hidden md:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-black/95 text-white p-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 text-sm">
-                      <div className="font-bold text-yellow-400 mb-1">{joker.icon} {joker.name}</div>
-                      <div className="text-xs">{joker.desc}</div>
-                      <div className="text-xs text-yellow-300 mt-2">💰 מכירה: {Math.floor(joker.cost / 2)}₪</div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black/95"></div>
-                    </div>
-                    
-                    {/* פירוט למובייל - ב-click */}
-                    <div className="md:hidden text-xs text-center mt-1 text-gray-300">
-                      {joker.icon} {joker.name}
-                    </div>
+        {/* Joker detail modal (mobile) */}
+        {jokerDetail && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setJokerDetail(null)}>
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-2xl border-2 border-purple-400 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+              <div className="text-center">
+                <div className="text-5xl mb-3">{jokerDetail.icon}</div>
+                <div className="text-xl font-bold text-yellow-400 mb-2">{jokerDetail.name}</div>
+                <div className="text-sm text-gray-300 mb-3">{jokerDetail.desc}</div>
+                <div className="text-xs text-purple-300 mb-4">נדירות: {jokerDetail.rarity}</div>
+                <button onClick={() => setJokerDetail(null)} className="px-6 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition">סגור</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Deck viewer modal */}
+        {showShopDeck && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowShopDeck(false)}>
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border-2 border-blue-400 max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <h3 className="text-xl font-bold text-blue-300 mb-3 text-center">🎴 החפיסה שלך ({[...hand, ...deck].length} קלפים)</h3>
+              <div className="flex flex-wrap gap-1 justify-center mb-3">
+                {[...hand, ...deck].sort((a, b) => (LETTER_VALUES[a.letter] || 0) - (LETTER_VALUES[b.letter] || 0)).map((card, i) => (
+                  <div key={i} className={"w-9 h-11 rounded border flex items-center justify-center text-sm font-bold bg-gradient-to-br " + (COLOR_STYLES[card.color] || COLOR_STYLES.rainbow).gradient + " " + (COLOR_STYLES[card.color] || COLOR_STYLES.rainbow).text}>
+                    {card.letter}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4 text-blue-300">ג'וקרים לקנייה ({jokers.length}/{maxJokers})</h2>
-            <div className="flex gap-4 flex-wrap">
-              {shopJokers.length > 0 ? shopJokers.map(joker => (
-                <JokerCard
-                  key={joker.id}
-                  joker={joker}
-                  onClick={() => buyJoker(joker)}
-                  canBuy={money >= joker.cost && jokers.length < maxJokers}
-                />
-              )) : (
-                <div className="text-gray-400">אין עוד ג'וקרים זמינים</div>
-              )}
+              <button onClick={() => setShowShopDeck(false)} className="w-full py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition font-bold">סגור</button>
             </div>
           </div>
+        )}
 
-          {/* Vouchers */}
-          {shopVouchers.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-xl font-bold mb-4 text-orange-300">🎁 בונוסים קבועים</h2>
-              <div className="flex gap-4 flex-wrap">
-                {shopVouchers.map(voucher => (
-                  <div
-                    key={voucher.id}
-                    onClick={() => buyVoucher(voucher)}
-                    className={`
-                      p-6 bg-gradient-to-br from-orange-600 to-orange-800
-                      rounded-xl border-4 border-orange-400 min-w-[200px] transition-all duration-200
-                      ${money >= voucher.cost ? 'cursor-pointer hover:border-yellow-300 hover:scale-105 hover:shadow-2xl' : 'opacity-50 cursor-not-allowed'}
-                    `}
-                  >
-                    <div className="text-4xl mb-2">{voucher.icon}</div>
-                    <div className="font-bold text-lg mb-1">{voucher.name}</div>
-                    <div className="text-sm text-white/90 mb-3">{voucher.desc}</div>
-                    <div className="text-yellow-300 font-bold text-xl">{voucher.cost}₪</div>
+        {/* Header */}
+        <div className="flex justify-between items-center mb-2 bg-black/30 p-2 rounded-xl">
+          <h1 className="text-2xl md:text-3xl font-bold text-yellow-400">🏪 החנות</h1>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowShopDeck(true)} className="px-3 py-1 bg-blue-800 rounded-lg text-sm hover:bg-blue-700 transition">🎴 חפיסה</button>
+            <div className="text-2xl font-bold text-yellow-400">💰 {money}₪</div>
+          </div>
+        </div>
+
+        {/* My jokers */}
+        {jokers.length > 0 && (
+          <div className="mb-2 bg-black/20 p-2 rounded-xl">
+            <div className="text-xs font-bold text-green-300 mb-1">הג'וקרים שלי ({jokers.length}/{maxJokers})</div>
+            <div className="flex gap-1 flex-wrap">
+              {jokers.map((joker) => (
+                <div key={joker.id} className="relative group">
+                  <div onClick={() => setJokerDetail(joker)} className="w-10 h-10 bg-gradient-to-br from-green-700 to-green-900 rounded-lg flex items-center justify-center text-lg cursor-pointer hover:scale-110 transition border border-green-500">
+                    {joker.icon}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4 text-purple-300">שדרוגי אותיות</h2>
-            <div className="flex gap-4 flex-wrap">
-              {shopUpgrades.map(upgrade => (
-                <div
-                  key={upgrade.id}
-                  onClick={() => buyUpgrade(upgrade)}
-                  className={`
-                    p-4 bg-gradient-to-br from-purple-600 to-purple-800
-                    rounded-lg border-2 border-white/20 min-w-[140px] transition-all duration-200
-                    ${money >= upgrade.cost ? 'cursor-pointer hover:border-white/50 hover:scale-105 hover:shadow-xl' : 'opacity-50 cursor-not-allowed'}
-                  `}
-                >
-                  <div className="text-3xl mb-2">{upgrade.icon}</div>
-                  <div className="font-bold text-sm">{upgrade.name}</div>
-                  <div className="text-xs text-white/80 mt-1">{upgrade.desc}</div>
-                  <div className="text-yellow-400 font-bold mt-2">{upgrade.cost}₪</div>
+                  <div className="hidden md:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-48 bg-black/95 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 text-xs">
+                    <div className="font-bold text-yellow-400">{joker.icon} {joker.name}</div>
+                    <div className="text-gray-300">{joker.desc}</div>
+                    <button onClick={(e) => { e.stopPropagation(); sellJoker(joker); }} className="mt-1 w-full py-1 bg-red-700 rounded text-xs hover:bg-red-600">מכור ({Math.floor(joker.cost / 2)}₪)</button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
+        )}
 
-          {/* 🎴 קלפים לקנייה */}
-          {shopCards.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-xl font-bold mb-4 text-cyan-300">🎴 קלפים חדשים</h2>
-              <div className="flex gap-4 flex-wrap">
-                {shopCards.map(card => (
+        {/* Main shop grid */}
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 overflow-hidden min-h-0">
+          {/* Jokers for sale */}
+          <div className="bg-black/20 p-2 rounded-xl overflow-hidden flex flex-col">
+            <div className="text-xs font-bold text-blue-300 mb-1">🃏 ג'וקרים ({jokers.length}/{maxJokers})</div>
+            <div className="flex gap-2 flex-wrap flex-1 content-start">
+              {shopJokers.length > 0 ? shopJokers.map(joker => (
+                <div key={joker.id} className="relative group flex-shrink-0">
                   <div
-                    key={card.id}
-                    onClick={() => buyCard(card)}
-                    className={`
-                      relative p-4 bg-gradient-to-br from-cyan-600 to-cyan-800
-                      rounded-xl border-4 min-w-[160px] transition-all duration-200
-                      ${money >= card.cost ? 'cursor-pointer hover:border-cyan-300 hover:scale-105 hover:shadow-2xl border-cyan-500' : 'opacity-50 cursor-not-allowed border-gray-600'}
-                    `}
+                    onClick={() => {
+                      if (money >= joker.cost && jokers.length < maxJokers) {
+                        setConfirmPurchase({ type: 'joker', item: joker });
+                      }
+                    }}
+                    className={"w-20 h-24 bg-gradient-to-br rounded-lg border-2 flex flex-col items-center justify-center p-1 transition-all cursor-pointer " + 
+                      (joker.rarity === 'legendary' ? 'from-purple-600 to-purple-900 border-purple-400' : joker.rarity === 'rare' ? 'from-blue-600 to-blue-800 border-blue-400' : joker.rarity === 'uncommon' ? 'from-green-600 to-green-800 border-green-400' : 'from-gray-600 to-gray-800 border-gray-400') +
+                      (money >= joker.cost && jokers.length < maxJokers ? ' hover:scale-105 hover:shadow-lg' : ' opacity-50')}
                   >
-                    <div className="flex flex-col items-center">
-                      {/* תצוגת הקלף */}
-                      <div className="mb-3">
-                        <Card card={card} inHand={false} />
-                      </div>
-                      
-                      {/* תיאור */}
-                      <div className="text-center">
-                        {card.type === 'wildcard' && (
-                          <div className="text-sm font-bold text-purple-200 mb-1">🌈 קלף כוכב!</div>
-                        )}
-                        {card.type === 'upgraded' && (
-                          <div className="text-sm font-bold text-yellow-200 mb-1">✨ משודרג!</div>
-                        )}
-                        {card.type === 'normal' && (
-                          <div className="text-sm text-cyan-200 mb-1">קלף רגיל</div>
-                        )}
-                        
-                        {/* מחיר */}
-                        <div className="text-yellow-300 font-bold text-2xl mt-2">
-                          {card.cost}₪
-                        </div>
-                      </div>
+                    <div className="text-2xl">{joker.icon}</div>
+                    <div className="text-[9px] font-bold text-center leading-tight mt-0.5">{joker.name}</div>
+                    <div className="text-xs font-bold text-yellow-400 mt-auto">{joker.cost}₪</div>
+                  </div>
+                  <div className="hidden md:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-48 bg-black/95 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 text-xs">
+                    <div className="font-bold text-yellow-400">{joker.icon} {joker.name}</div>
+                    <div className="text-gray-300">{joker.desc}</div>
+                    <div className="text-purple-300 mt-1">{joker.rarity}</div>
+                  </div>
+                </div>
+              )) : <div className="text-gray-500 text-xs">אין ג'וקרים זמינים</div>}
+            </div>
+          </div>
+
+          {/* Right column: Vouchers + Upgrades + Cards */}
+          <div className="flex flex-col gap-2 overflow-hidden">
+            {/* Vouchers */}
+            {shopVouchers.length > 0 && (
+              <div className="bg-black/20 p-2 rounded-xl">
+                <div className="text-xs font-bold text-orange-300 mb-1">🎁 בונוסים</div>
+                <div className="flex gap-2 flex-wrap">
+                  {shopVouchers.map(voucher => (
+                    <div key={voucher.id} onClick={() => money >= voucher.cost ? setConfirmPurchase({ type: 'voucher', item: voucher }) : null}
+                      className={"flex-1 min-w-[120px] p-2 bg-gradient-to-br from-orange-600 to-orange-800 rounded-lg border border-orange-400 transition-all text-center cursor-pointer " + (money >= voucher.cost ? 'hover:scale-105' : 'opacity-50')}>
+                      <div className="text-xl">{voucher.icon}</div>
+                      <div className="text-[10px] font-bold">{voucher.name}</div>
+                      <div className="text-[9px] text-white/80">{voucher.desc}</div>
+                      <div className="text-sm font-bold text-yellow-300">{voucher.cost}₪</div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upgrades */}
+            <div className="bg-black/20 p-2 rounded-xl">
+              <div className="text-xs font-bold text-purple-300 mb-1">✨ שדרוגים</div>
+              <div className="flex gap-2 flex-wrap">
+                {shopUpgrades.map(upgrade => (
+                  <div key={upgrade.id} onClick={() => money >= upgrade.cost ? setConfirmPurchase({ type: 'upgrade', item: upgrade }) : null}
+                    className={"flex-1 min-w-[80px] p-2 bg-gradient-to-br from-purple-600 to-purple-800 rounded-lg border border-purple-400 text-center transition-all cursor-pointer " + (money >= upgrade.cost ? 'hover:scale-105' : 'opacity-50')}>
+                    <div className="text-xl">{upgrade.icon}</div>
+                    <div className="text-[10px] font-bold">{upgrade.name}</div>
+                    <div className="text-sm font-bold text-yellow-300">{upgrade.cost}₪</div>
                   </div>
                 ))}
               </div>
-              <div className="text-xs text-gray-400 mt-2">
-                💡 קלפים שנקנים מתוספים לחפיסה שלך לצמיתות
-              </div>
             </div>
-          )}
 
-          {/* כפתורים */}
-          <div className="flex gap-4">
-            <button
-              onClick={() => {
-                const canRerollFree = hasFreeReroll && !rerollUsedThisShop;
-                const rerollCost = canRerollFree ? 0 : 5;
-                if (money >= rerollCost) {
-                  setMoney(money - rerollCost);
-                  if (canRerollFree) {
-                    setRerollUsedThisShop(true);
-                  }
-                  generateShop();
-                }
-              }}
-              className={`flex-1 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 shadow-xl ${
-                money >= (hasFreeReroll && !rerollUsedThisShop ? 0 : 5)
-                  ? 'bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900'
-                  : 'bg-gray-600 opacity-50 cursor-not-allowed'
-              }`}
-              disabled={money < (hasFreeReroll && !rerollUsedThisShop ? 0 : 5)}
-            >
-              🔄 רענן ({hasFreeReroll && !rerollUsedThisShop ? 'חינם!' : '5₪'})
-            </button>
-            
-            <button
-              onClick={continueGame}
-              className="flex-1 px-8 py-4 bg-gradient-to-r from-green-600 to-green-800 rounded-xl font-bold text-xl hover:from-green-700 hover:to-green-900 transition-all transform hover:scale-105 shadow-xl"
-            >
-              ➡️ המשך למשחק
-            </button>
+            {/* Cards for sale */}
+            {shopCards.length > 0 && (
+              <div className="bg-black/20 p-2 rounded-xl">
+                <div className="text-xs font-bold text-cyan-300 mb-1">🎴 קלפים</div>
+                <div className="flex gap-2 flex-wrap">
+                  {shopCards.map(card => (
+                    <div key={card.id} onClick={() => money >= card.cost ? setConfirmPurchase({ type: 'card', item: card }) : null}
+                      className={"flex-1 min-w-[70px] p-2 bg-gradient-to-br from-cyan-700 to-cyan-900 rounded-lg border border-cyan-500 text-center transition-all cursor-pointer " + (money >= card.cost ? 'hover:scale-105' : 'opacity-50')}>
+                      <div className={"text-2xl font-bold " + (COLOR_STYLES[card.color] || {}).text}>{card.letter}</div>
+                      <div className="text-[9px] text-cyan-200">{card.type === 'wildcard' ? '🌈 כוכב' : card.type === 'upgraded' ? '✨ משודרג' : 'רגיל'}</div>
+                      <div className="text-sm font-bold text-yellow-300">{card.cost}₪</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Bottom buttons */}
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={() => {
+              const canRerollFree = hasFreeReroll && !rerollUsedThisShop;
+              const rerollCost = canRerollFree ? 0 : 5;
+              if (money >= rerollCost) {
+                setMoney(money - rerollCost);
+                if (canRerollFree) setRerollUsedThisShop(true);
+                generateShop();
+              }
+            }}
+            className={"flex-1 px-4 py-3 rounded-xl font-bold text-lg transition-all " + (money >= (hasFreeReroll && !rerollUsedThisShop ? 0 : 5) ? 'bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900' : 'bg-gray-600 opacity-50 cursor-not-allowed')}
+            disabled={money < (hasFreeReroll && !rerollUsedThisShop ? 0 : 5)}
+          >
+            🔄 רענן ({hasFreeReroll && !rerollUsedThisShop ? 'חינם!' : '5₪'})
+          </button>
+          <button
+            onClick={continueGame}
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-xl font-bold text-lg hover:from-green-700 hover:to-green-900 transition-all"
+          >
+            ➡️ המשך
+          </button>
         </div>
       </div>
     );
